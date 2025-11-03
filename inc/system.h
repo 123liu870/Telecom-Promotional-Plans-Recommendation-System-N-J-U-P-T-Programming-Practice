@@ -16,5 +16,6 @@ typedef struct package
     char description[256];          // 备注/描述
 } Package;
 
+static const char *PKG_FILE = "packages.txt";// 套餐数据文件
 
 #endif /* SYSTEM_H */
