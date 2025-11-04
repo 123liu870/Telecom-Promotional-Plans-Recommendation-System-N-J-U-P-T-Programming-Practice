@@ -240,124 +240,233 @@ User* findUser(const char* userId) {
     }
     return NULL;
 }
+// 需求结构体（需在system.h中声明为extern）
+typedef struct {
+    int data_mb;         // 流量需求(MB)
+    int voice_minutes;   // 通话需求(分钟)
+    int sms;             // 短信需求(条)
+    int valid;           // 需求有效性标记(1:有效)
+} Demand;
+static Demand userDemand = {0, 0, 0, 0};  // 全局需求变量
 
-// 填写需求调查
+// 1. 填写需求调查
 void inputDemandByForm() {
-    printf("\n===== 填写需求调查 =====\n");
-    printf("请输入每月通话需求（分钟）：");
-    scanf("%d", &currentUser.callDemand);
-    clearInputBuffer();
-
-    printf("请输入每月流量需求（MB）：");
-    scanf("%d", &currentUser.flowDemand);
-    clearInputBuffer();
-
-    printf("是否需要宽带（1=需要，0=不需要）：");
-    scanf("%d", &currentUser.broadbandDemand);
-    clearInputBuffer();
-
-    printf("请输入套餐使用年限（年）：");
-    scanf("%d", &currentUser.useYears);
-    clearInputBuffer();
-
-    printf("请输入累计消费金额（元）：");
-    scanf("%f", &currentUser.totalCost);
-    clearInputBuffer();
-
-    User* user = findUser(currentUser.userId);
-    if (user) {
-        user->callDemand = currentUser.callDemand;
-        user->flowDemand = currentUser.flowDemand;
-        user->broadbandDemand = currentUser.broadbandDemand;
-        user->useYears = currentUser.useYears;
-        user->totalCost = currentUser.totalCost;
-    }
-    saveUsersToText();
-    printf("需求提交成功！\n");
-}
-
-// 计算用户星级
-void calcUserStar() {
-    int star = 1;
-    if (currentUser.totalCost >= 800) star = 5;
-    else if (currentUser.totalCost >= 600) star = 4;
-    else if (currentUser.totalCost >= 400) star = 3;
-    else if (currentUser.totalCost >= 200) star = 2;
-
-    printf("\n===== 用户星级 =====\n");
-    printf("用户：%s（%s）\n", currentUser.userName, currentUser.userId);
-    printf("累计消费金额：%.2f元\n", currentUser.totalCost);
-    printf("星级评定：%d星\n", star);
-    currentUser.userStar = star;
-
-    User* user = findUser(currentUser.userId);
-    if (user) {
-        user->userStar = star;
-    }
-    saveUsersToText();
-}
-
-// 匹配套餐
-void matchPackagesByDemand() {
-    matchedCount = 0;
-    if (totalPackages == 0) {
-        printf("系统中暂无套餐数据！\n");
+    // 检查登录状态
+    if (currentUser == NULL || strlen(currentUser->userName) == 0) {
+        printf("[错误] 请先登录系统！\n");
         return;
     }
 
-    for (int i = 0; i < totalPackages; i++) {
-        int callMatch = (packageList[i].voice_minutes >= currentUser.callDemand) ? 1 : 0;
-        int flowMatch = (packageList[i].data_mb >= currentUser.flowDemand) ? 1 : 0;
-        int broadbandMatch = 0;
-        if (currentUser.broadbandDemand == 1) {
-            broadbandMatch = (packageList[i].broadband > 0) ? 1 : 0;
-        } else {
-            broadbandMatch = (packageList[i].broadband == 0) ? 1 : 0;
-        }
+    // 重置需求状态
+    userDemand.valid = 0;
 
-        if (callMatch && flowMatch && broadbandMatch) {
-            if (matchedCount < 10) {
-                matchedPackages[matchedCount++] = packageList[i];
+    // 输入流量需求（带校验）
+    printf("\n===== 需求调查 =====");
+    while (1) {
+        printf("\n请输入每月流量需求(MB，0-10000)：");
+        if (scanf("%d", &userDemand.data_mb) != 1) {
+            printf("[错误] 输入格式错误，请重新输入数字！");
+            clearInputBuffer();
+            continue;
+        }
+        if (userDemand.data_mb >= 0 && userDemand.data_mb <= 10000) break;
+        printf("[错误] 流量范围需在0-10000MB之间！");
+    }
+    clearInputBuffer();
+
+    // 输入通话需求（带校验）
+    while (1) {
+        printf("请输入每月通话时长需求(分钟，0-3000)：");
+        if (scanf("%d", &userDemand.voice_minutes) != 1) {
+            printf("[错误] 输入格式错误，请重新输入数字！");
+            clearInputBuffer();
+            continue;
+        }
+        if (userDemand.voice_minutes >= 0 && userDemand.voice_minutes <= 3000) break;
+        printf("[错误] 通话时长需在0-3000分钟之间！");
+    }
+    clearInputBuffer();
+
+    // 输入短信需求（带校验）
+    while (1) {
+        printf("请输入每月短信需求(条，0-1000)：");
+        if (scanf("%d", &userDemand.sms) != 1) {
+            printf("[错误] 输入格式错误，请重新输入数字！");
+            clearInputBuffer();
+            continue;
+        }
+        if (userDemand.sms >= 0 && userDemand.sms <= 1000) break;
+        printf("[错误] 短信数量需在0-1000条之间！");
+    }
+    clearInputBuffer();
+
+    userDemand.valid = 1;
+    printf("\n[成功] 需求调查已保存！\n");
+}
+
+// 2. 计算用户星级
+void calcUserStar() {
+    // 检查登录状态
+    if (currentUser == NULL || strlen(currentUser->userName) == 0) {
+        printf("[错误] 请先登录系统！\n");
+        return;
+    }
+
+    // 基础星级（基于累计消费）
+    int baseStar = 1;
+    if (currentUser->totalCost >= 10000)      baseStar = 5;
+    else if (currentUser->totalCost >= 5000)  baseStar = 4;
+    else if (currentUser->totalCost >= 2000)  baseStar = 3;
+    else if (currentUser->totalCost >= 500)   baseStar = 2;
+
+    // 年限加成（最高5星）
+    int yearBonus = 0;
+    if (currentUser->useYears >= 10)  yearBonus = 2;
+    else if (currentUser->useYears >= 5)  yearBonus = 1;
+
+    // 最终星级（不超过5星）
+    int finalStar = baseStar + yearBonus;
+    finalStar = (finalStar > 5) ? 5 : finalStar;
+
+    // 更新用户星级
+    currentUser->userStar = finalStar;
+
+    // 输出结果
+    printf("\n[星级计算结果]\n");
+    printf("累计消费：%.2f元 → 基础星级：%d星\n", currentUser->totalCost, baseStar);
+    printf("使用年限：%d年 → 年限加成：%d星\n", currentUser->useYears, yearBonus);
+    printf("当前星级：%d星\n", finalStar);
+}
+
+// 工具函数：计算套餐匹配得分
+static float calcMatchScore(const Package* pkg, const Demand* demand, int userStar) {
+    if (!pkg || !demand || !demand->valid) return -1.0f;
+
+    // 基础需求不满足直接淘汰
+    if (pkg->data_mb < demand->data_mb || 
+        pkg->voice_minutes < demand->voice_minutes || 
+        pkg->sms < demand->sms) {
+        return -1.0f;
+    }
+
+    // 资源匹配度计算（1.0为最优）
+    float dataScore = (demand->data_mb == 0) ? 1.0f : 
+                     (1.0f - (pkg->data_mb - demand->data_mb) / (float)(pkg->data_mb + 1));
+    float voiceScore = (demand->voice_minutes == 0) ? 1.0f : 
+                      (1.0f - (pkg->voice_minutes - demand->voice_minutes) / (float)(pkg->voice_minutes + 1));
+    float smsScore = (demand->sms == 0) ? 1.0f : 
+                    (1.0f - (pkg->sms - demand->sms) / (float)(pkg->sms + 1));
+
+    // 价格优势计算（星级越高，价格敏感度越低）
+    float priceScore = 1.0f - (pkg->monthly_fee / (float)(100 + userStar * 20));
+
+    // 综合得分（加权求和）
+    return dataScore * 0.4 + voiceScore * 0.3 + smsScore * 0.2 + priceScore * 0.1;
+}
+
+// 工具函数：交换套餐（排序用）
+static void swapPackages(Package* a, Package* b) {
+    Package temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// 3. 匹配套餐
+void matchPackagesByDemand() {
+    // 前置条件检查
+    if (currentUser == NULL || strlen(currentUser->userName) == 0) {
+        printf("[错误] 请先登录系统！\n");
+        return;
+    }
+    if (!userDemand.valid) {
+        printf("[错误] 请先填写需求调查！\n");
+        return;
+    }
+    if (totalPackages <= 0 || !allPackages) {
+        printf("[错误] 系统无套餐数据，请联系管理员！\n");
+        return;
+    }
+
+    // 重置匹配结果
+    matchedPkgCount = 0;
+    memset(matchedPackages, 0, sizeof(matchedPackages));
+
+    // 筛选有效套餐并计算得分
+    for (int i = 0; i < totalPackages; i++) {
+        const Package* pkg = &allPackages[i];
+        if (!pkg->is_active || pkg->is_deleted) continue;  // 跳过无效套餐
+
+        float score = calcMatchScore(pkg, &userDemand, currentUser->userStar);
+        if (score <= 0) continue;  // 过滤不匹配套餐
+
+        // 保存匹配结果（最多20个）
+        if (matchedPkgCount < 20) {
+            matchedPackages[matchedPkgCount] = *pkg;
+            matchedPackages[matchedPkgCount].match_score = score;
+            matchedPkgCount++;
+        }
+    }
+
+    // 按匹配度降序排序
+    for (int i = 0; i < matchedPkgCount - 1; i++) {
+        for (int j = 0; j < matchedPkgCount - i - 1; j++) {
+            if (matchedPackages[j].match_score < matchedPackages[j+1].match_score) {
+                swapPackages(&matchedPackages[j], &matchedPackages[j+1]);
             }
         }
     }
+
+    printf("\n[匹配完成] 共找到 %d 个符合需求的套餐\n", matchedPkgCount);
 }
 
-// 显示推荐套餐
+// 4. 显示推荐套餐
 void showMatchedPackages() {
-    if (matchedCount == 0) {
-        printf("\n暂无匹配的套餐，请调整需求后重试！\n");
+    // 前置条件检查
+    if (currentUser == NULL || strlen(currentUser->userName) == 0) {
+        printf("[错误] 请先登录系统！\n");
+        return;
+    }
+    if (matchedPkgCount == 0) {
+        printf("[提示] 暂无匹配套餐，建议降低需求或联系客服！\n");
         return;
     }
 
-    printf("\n===== 推荐套餐列表 =====\n");
-    printf("序号\t套餐ID\t套餐名称\t月资费\t通话分钟\t流量(MB)\t宽带(M)\n");
-    for (int i = 0; i < matchedCount; i++) {
-        printf("%d\t%d\t%s\t%.2f\t%d\t%d\t%d\n",
-               i+1,
-               matchedPackages[i].id,
-               matchedPackages[i].name,
-               matchedPackages[i].monthly_fee,
-               matchedPackages[i].voice_minutes,
-               matchedPackages[i].data_mb,
-               matchedPackages[i].broadband);
-    }
+    // 分页显示（每页5条）
+    int pageSize = 5;
+    int totalPages = (matchedPkgCount + pageSize - 1) / pageSize;
+    int currentPage = 1;
+    char input[10];
 
-    int choice;
-    printf("请选择套餐序号（1-%d）办理，或输入0返回：", matchedCount);
-    scanf("%d", &choice);
-    clearInputBuffer();
+    while (1) {
+        int start = (currentPage - 1) * pageSize;
+        int end = (currentPage * pageSize < matchedPkgCount) ? currentPage * pageSize : matchedPkgCount;
 
-    if (choice >= 1 && choice <= matchedCount) {
-        sprintf(currentUser.selectedPkg, "%d", matchedPackages[choice-1].id);
-        User* user = findUser(currentUser.userId);
-        if (user) {
-            strcpy(user->selectedPkg, currentUser.selectedPkg);
+        // 打印当前页套餐
+        printf("\n===== 推荐套餐（%d星用户）- 第%d/%d页 =====\n", 
+               currentUser->userStar, currentPage, totalPages);
+        printf("+----+----------------+----------+----------+----------+----------+------------+\n");
+        printf("| ID | 套餐名称       | 月费(元) | 流量(MB) | 通话(分钟)| 短信(条) | 匹配度(%%)  |\n");
+        printf("+----+----------------+----------+----------+----------+----------+------------+\n");
+        
+        for (int i = start; i < end; i++) {
+            const Package* pkg = &matchedPackages[i];
+            printf("| %2d | %-14s | %8.2f | %8d | %8d | %8d | %8.1f |\n",
+                   pkg->id, pkg->name, pkg->monthly_fee,
+                   pkg->data_mb, pkg->voice_minutes, pkg->sms,
+                   pkg->match_score * 100);
         }
-        saveUsersToText();
-        printf("套餐办理成功！当前套餐：%s\n", currentUser.selectedPkg);
-    } else {
-        printf("已取消办理\n");
+        
+        printf("+----+----------------+----------+----------+----------+----------+------------+\n");
+
+        // 分页控制
+        if (totalPages <= 1) break;
+        printf("\n输入页码(1-%d)或q退出：", totalPages);
+        fgets(input, sizeof(input), stdin);
+        if (input[0] == 'q' || input[0] == 'Q') break;
+        
+        int page = atoi(input);
+        if (page >= 1 && page <= totalPages) currentPage = page;
+        else printf("无效页码，请重新输入！\n");
     }
 }
 
@@ -405,128 +514,5 @@ void applyPackageChange() {
         printf("套餐变更成功！\n");
     } else {
         printf("套餐变更失败！\n");
-    }
-}
-
-// 用户功能菜单
-void userFunctionMenu() {
-    // 初始化：加载数据
-    if (!loadPackagesFromText() || !loadUsersFromText()) {
-        printf("数据加载失败，无法启动用户功能！\n");
-        return;
-    }
-
-    // 用户登录
-    printf("\n===== 用户登录 =====\n");
-    char userId[20];
-    char userPwd[20];
-    printf("请输入用户编号：");
-    fgets(userId, sizeof(userId), stdin);
-    userId[strcspn(userId, "\n")] = '\0';
-    trimStr(userId);
-
-    printf("请输入用户密码：");
-    fgets(userPwd, sizeof(userPwd), stdin);
-    userPwd[strcspn(userPwd, "\n")] = '\0';
-    trimStr(userPwd);
-
-    User* loginUser = NULL;
-    for (int i = 0; i < totalUsers; i++) {
-        if (strcmp(userList[i].userId, userId) == 0 && strcmp(userList[i].userPwd, userPwd) == 0) {
-            loginUser = &userList[i];
-            break;
-        }
-    }
-
-    if (loginUser) {
-        currentUser = *loginUser;
-        printf("登录成功，欢迎 %s！\n", currentUser.userName);
-    } else {
-        // 新用户注册
-        printf("用户不存在或密码错误，是否注册新用户（y/n）：");
-        char reg;
-        scanf("%c", &reg);
-        clearInputBuffer();
-        if (reg != 'y' && reg != 'Y') {
-            printf("登录失败，返回主菜单！\n");
-            return;
-        }
-
-        // 初始化新用户
-        strncpy(currentUser.userId, userId, 19);
-        strncpy(currentUser.userPwd, userPwd, 19);
-        printf("请输入用户名：");
-        fgets(currentUser.userName, sizeof(currentUser.userName), stdin);
-        currentUser.userName[strcspn(currentUser.userName, "\n")] = '\0';
-        trimStr(currentUser.userName);
-        strcpy(currentUser.selectedPkg, "未选择");
-        currentUser.useYears = 0;
-        currentUser.totalCost = 0.0;
-        currentUser.userStar = 1;
-
-        // 添加到用户列表
-        totalUsers++;
-        userList = (User*)realloc(userList, totalUsers * sizeof(User));
-        if (!userList) {
-            printf("内存分配失败，注册失败！\n");
-            totalUsers--;
-            return;
-        }
-        userList[totalUsers - 1] = currentUser;
-
-        // 保存新用户
-        if (saveUsersToText()) {
-            printf("注册成功，已登录！\n");
-        } else {
-            printf("注册失败，返回主菜单！\n");
-            return;
-        }
-    }
-
-    // 菜单循环
-    while (1) {
-        printf("\n===== 用户功能菜单 =====\n");
-        printf("1. 录入用户需求（示例）\n");
-        printf("2. 查看用户星级\n");
-        printf("3. 查看推荐套餐（示例）\n");
-        printf("4. 查询个人套餐\n");
-        printf("5. 变更套餐\n");
-        printf("6. 返回主菜单\n");
-        printf("请选择：");
-
-        int choice;
-        if (scanf("%d", &choice) != 1) {
-            printf("输入错误，请输入数字！\n");
-            clearInputBuffer();
-            continue;
-        }
-        clearInputBuffer();
-
-        switch (choice) {
-            case 1:
-                inputUserDemand();
-                break;
-            case 2:
-                calcUserStar();
-                break;
-            case 3:
-                matchPackagesByDemand();
-                showMatchedPackages();
-                break;
-            case 4:
-                queryUserPackage();
-                break;
-            case 5:
-                applyPackageChange();
-                break;
-            case 6:
-                printf("返回主菜单...\n");
-                // 释放内存
-                if (packageList) free(packageList);
-                if (userList) free(userList);
-                return;
-            default:
-                printf("无效选项，请输入1-6！\n");
-        }
     }
 }
