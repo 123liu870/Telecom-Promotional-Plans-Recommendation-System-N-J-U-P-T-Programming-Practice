@@ -1,6 +1,16 @@
 #ifndef MENU_H
 #define MENU_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "user.h"
+#include "admin.h"
+
+void clearInputBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}//清空输入缓存区函数
 /*主菜单 实现功能：主菜单信息，执行操作通过调用别的函数内的接口*/
 void mainMenu() {
     while (1) {
@@ -21,19 +31,19 @@ void mainMenu() {
         
         switch (choice) {
             case 1:
-                userLogin();
+                userLogin();//用户登入函数
                 // 登录成功后跳转到用户功能菜单
                 if (strlen(currentUser.userId) > 0) {
                     userFunctionMenu();
                 }
                 break;
             case 2:
-                if (adminLogin()) {
+                if (adminLogin()) {//管理员账号登入函数
                     adminMenu();
                 }
                 break;
             case 3:
-                exitUserSystem();
+                exitUserSystem();//返回主菜单函数
                 break;
             default:
                 printf("无效选项，请重新输入！\n");
@@ -64,19 +74,19 @@ void adminMenu() {
         
         switch (choice) {
             case 1:
-                showAllPackages();
+                showAllPackages();//显示所有套餐
                 break;
             case 2:
-                addPackage();
+                addPackage();//添加套餐
                 break;
             case 3:
-                deletePackage();
+                deletePackage();//删除套餐
                 break;
             case 4:
-                modifyPackage();
+                modifyPackage();//修改套餐
                 break;
             case 5:
-                statPackageUsers();
+                statPackageUsers();//统计套餐用户数
                 break;
             case 6:
                 printf("返回主菜单...\n");
@@ -110,10 +120,10 @@ void userFunctionMenu() {
         
         switch (choice) {
             case 1:
-                inputDemandByForm();
+                inputDemandByForm();//填写调查需求
                 break;
             case 2:
-                calcUserStar();
+                calcUserStar();//查看客户星级
                 break;
             case 3:
                 {
@@ -123,10 +133,10 @@ void userFunctionMenu() {
                 }
                 break;
             case 4:
-                queryUserPackage();
+                queryUserPackage();//查询套餐
                 break;
             case 5:
-                applyPackageChange();
+                applyPackageChange();//变更套餐
                 break;
             case 6:
                 printf("返回主菜单...\n");
