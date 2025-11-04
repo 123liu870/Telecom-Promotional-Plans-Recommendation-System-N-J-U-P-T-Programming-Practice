@@ -1,0 +1,9 @@
+{
+    "trae.enableCodelens": {
+        "enableInlineDocumentation": false,
+        "enableInlineExplain": false
+    },
+    "files.associations": {
+        "*.rh": "c"
+    }
+}
