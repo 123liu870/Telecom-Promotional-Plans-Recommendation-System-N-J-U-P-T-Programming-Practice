@@ -30,7 +30,7 @@ void mainMenu() {
             case 1:
                 userLogin();//用户登入函数
                 // 登录成功后跳转到用户功能菜单
-                if (strlen(currentUser.userId) > 0) {
+                if (strlen(currentUser->userId) > 0) {
                     userFunctionMenu();
                 }
                 break;

@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 #include "user.h"
 #include "system.h"
 
@@ -471,4 +469,3 @@ void applyPackageChange() {
         printf("套餐变更失败！\n");
     }
 }
->>>>>>> b31c9df9e511d6ea5e71592e5f6cdb1cd9baeb4e
