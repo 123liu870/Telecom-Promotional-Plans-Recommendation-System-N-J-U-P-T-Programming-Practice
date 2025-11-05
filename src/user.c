@@ -21,6 +21,10 @@ int isStrEmpty(const char* str) {
 
 // 用户登录
 void loginUser() {
+    if(!loadUsersFromText()) {
+        printf("[错误] 无法加载用户数据文件！\n");
+        return;
+    }
     char id[20], pwd[20];
 
     printf("\n===== 用户登录 =====\n");

@@ -167,24 +167,103 @@ void manage_admins(AdminAccount admins[], int *count) {
 }
 
 /*以下为对套餐信息的录入和修改*/
-// 套餐数据文件加载读取
+// 从文本文件加载套餐数据
 int load_packages(Package pkgs[], int *count) {
-	FILE *fp = fopen(PKG_FILE, "rb");
-	if (!fp) { *count = 0; return 0; }
-	if (fread(count, sizeof(int), 1, fp) != 1) { fclose(fp); *count = 0; return 0; }
-	if (*count > MAX_PACKAGES) *count = MAX_PACKAGES;
-	fread(pkgs, sizeof(Package), *count, fp);
-	fclose(fp);
-	return 1;
+    FILE *fp = fopen(PKG_FILE, "r");  // 文本模式读取
+    if (!fp) {
+        *count = 0;
+        return 0;
+    }
+
+    // 读取第一行的套餐总数
+    char line[512];
+    if (!fgets(line, sizeof(line), fp)) {  // 读取第一行
+        fclose(fp);
+        *count = 0;
+        return 0;
+    }
+    *count = atoi(line);  // 转换为整数
+
+    // 检查数量是否超过上限
+    if (*count > MAX_PACKAGES) {
+        *count = MAX_PACKAGES;
+    }
+
+    // 循环读取每个套餐
+    for (int i = 0; i < *count; i++) {
+        if (!fgets(line, sizeof(line), fp)) {  // 读取一行套餐数据
+            break;  // 若提前结束，实际数量为当前i
+        }
+
+        // 去除行尾换行符
+        line[strcspn(line, "\n")] = '\0';
+
+        // 按逗号分割字段（使用strtok）
+        char *token = strtok(line, ",");
+        if (token) pkgs[i].id = atoi(token);  // 套餐ID
+
+        token = strtok(NULL, ",");
+        if (token) strncpy(pkgs[i].name, token, sizeof(pkgs[i].name) - 1);  // 名称
+
+        token = strtok(NULL, ",");
+        if (token) pkgs[i].monthly_fee = atof(token);  // 月费
+
+        token = strtok(NULL, ",");
+        if (token) pkgs[i].data_mb = atoi(token);  // 流量
+
+        token = strtok(NULL, ",");
+        if (token) pkgs[i].voice_minutes = atoi(token);  // 语音分钟
+
+        token = strtok(NULL, ",");
+        if (token) pkgs[i].sms = atoi(token);  // 短信条数
+
+        token = strtok(NULL, ",");
+        if (token) pkgs[i].contract_months = atoi(token);  // 合约月数
+
+        token = strtok(NULL, ",");
+        if (token) strncpy(pkgs[i].start_date, token, sizeof(pkgs[i].start_date) - 1);  // 生效日期
+
+        token = strtok(NULL, ",");
+        if (token) strncpy(pkgs[i].end_date, token, sizeof(pkgs[i].end_date) - 1);  // 终止日期
+
+        token = strtok(NULL, ",");
+        if (token) pkgs[i].is_active = atoi(token);  // 是否启用
+
+        token = strtok(NULL, ",");
+        if (token) strncpy(pkgs[i].description, token, sizeof(pkgs[i].description) - 1);  // 描述
+    }
+
+    fclose(fp);
+    return 1;
 }
-// 套餐数据文件保存写入
+// 套餐数据保存为文本文件
 int save_packages(Package pkgs[], int count) {
-	FILE *fp = fopen(PKG_FILE, "wb");
-	if (!fp) return 0;
-	fwrite(&count, sizeof(int), 1, fp);
-	fwrite(pkgs, sizeof(Package), count, fp);
-	fclose(fp);
-	return 1;
+    FILE *fp = fopen(PKG_FILE, "w");  // 文本模式写入
+    if (!fp) return 0;
+
+    // 第一行写入套餐总数
+    fprintf(fp, "%d\n", count);
+
+    // 循环写入每个套餐的字段（逗号分隔）
+    for (int i = 0; i < count; i++) {
+        Package *p = &pkgs[i];
+        // 注意：字符串字段（如name、start_date等）若包含逗号会导致解析错误，这里假设无逗号
+        fprintf(fp, "%d,%s,%.2f,%d,%d,%d,%d,%s,%s,%d,%s\n",
+                p->id,
+                p->name,
+                p->monthly_fee,
+                p->data_mb,
+                p->voice_minutes,
+                p->sms,
+                p->contract_months,
+                p->start_date,
+                p->end_date,
+                p->is_active,
+                p->description);
+    }
+
+    fclose(fp);
+    return 1;
 }
 // 列出所有套餐
 void list_packages(Package pkgs[], int count) {
