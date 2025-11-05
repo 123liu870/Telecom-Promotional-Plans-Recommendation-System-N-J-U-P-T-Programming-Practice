@@ -111,7 +111,7 @@ void manage_admins(AdminAccount admins[], int *count) {
 		getchar();
 		switch (cmd) {
 			case 0:
-				break;
+				return;
 			case 1:
 					printf("\n所有管理员：\n");
 					for (int i = 0; i < *count; i++) {
@@ -334,6 +334,9 @@ void modify_package(Package pkgs[], int count) {
 	save_packages(pkgs, count);
 	printf("修改保存。\n");
 }
+
+/*以下为对用户所享受套餐政策，优惠的管理*/
+
 
 
 // 读取所有用户历史消费数据，填充 histories 数组，返回实际条数
