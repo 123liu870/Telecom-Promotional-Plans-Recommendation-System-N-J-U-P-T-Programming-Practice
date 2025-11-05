@@ -35,7 +35,7 @@ void mainMenu() {
                 break;
             case 3:{
                 int login_idx = -1;
-                if (!admin_login(admins, adminCount, &login_idx)) {
+                if (admin_login(admins, adminCount, &login_idx)) {
                     adminMenu(login_idx);
                 }
                 break;
@@ -100,7 +100,7 @@ void adminMenu(int index) {
         printf("1. 显示所有套餐\n");
         printf("2. 添加新套餐\n");
         printf("3. 修改套餐\n");
-        printf("4. 管理员账户修改");
+        printf("4. 管理员账户修改\n");
         printf("5. 返回主菜单\n");
         printf("请选择操作（1-5）：");
     
