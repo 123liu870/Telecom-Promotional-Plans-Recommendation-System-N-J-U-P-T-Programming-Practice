@@ -15,6 +15,9 @@ int main()
 	if(!load_packages(allPackages,&pkgCount)){
 			printf("初始化失败：未找到套餐数据文件。\n");
 	}// 从文件加载套餐
+	if(!loadUsersFromText()){
+			printf("初始化失败：未找到用户账号文件，\n");
+	}
 	mainMenu();
 	return 0;
 }

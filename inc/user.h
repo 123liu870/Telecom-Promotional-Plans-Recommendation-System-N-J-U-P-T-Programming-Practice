@@ -26,6 +26,9 @@ int userRegister();                      // 用户注册
 void inputDemandByForm();                 // 填写需求调查
 void calcUserStar();                      // 计算用户星级
 void matchPackagesByDemand();            // 根据需求匹配套餐
+void recommendPackages();              // 推荐套餐入口
+void recommendForNewUser();              // 为新用户推荐套餐
+void itemBasedCFRecommendation();        // 基于物品的协同过滤推荐
 void showMatchedPackages();               // 显示推荐套餐
 void queryUserPackage();                  // 查询个人套餐
 void applyPackageChange();                // 变更套餐

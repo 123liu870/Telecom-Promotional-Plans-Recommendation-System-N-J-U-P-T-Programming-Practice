@@ -1,12 +1,13 @@
 #include "user.h"
 #include "system.h"
+#include <math.h>
 
 // 全局变量定义
 Package* packageList = NULL;
-int totalPackages = 0;
 User* userList = NULL;
 int totalUsers = 0;
 User* currentUser;
+
 //需求结构体
 typedef struct {
     int data_mb;         // 流量需求(MB)
@@ -81,7 +82,7 @@ int loadPackagesFromText() {
         free(packageList);
         packageList = NULL;
     }
-    totalPackages = 0;
+    pkgCount = 0;
 
     FILE* fp = fopen(PKG_FILE, "r");
     if (!fp) {
@@ -95,13 +96,13 @@ int loadPackagesFromText() {
     char line[512];
     while (fgets(line, sizeof(line), fp)) {
         trimStr(line);
-        if (!isStrEmpty(line)) totalPackages++;
+        if (!isStrEmpty(line)) pkgCount++;
     }
     rewind(fp);
 
     // 分配内存
-    if (totalPackages > 0) {
-        packageList = (Package*)malloc(totalPackages * sizeof(Package));
+    if (pkgCount > 0) {
+        packageList = (Package*)malloc(pkgCount * sizeof(Package));
         if (!packageList) {
             fclose(fp);
             return 0;
@@ -160,7 +161,7 @@ int savePackagesToText() {
     FILE* fp = fopen(PKG_FILE, "w");
     if (!fp) return 0;
 
-    for (int i = 0; i < totalPackages; i++) {
+    for (int i = 0; i < pkgCount; i++) {
         fprintf(fp, "%d,%s,%.2f,%d,%d,%d,%d,%s,%s,%d,%s\n",
                 packageList[i].id,
                 packageList[i].name,
@@ -604,7 +605,7 @@ void matchPackagesByDemand() {
     }
     
     // 遍历所有套餐，计算匹配得分
-    for (int i = 0; i < totalPackages; i++) {
+    for (int i = 0; i < pkgCount; i++) {
         float score = calcMatchScore(&packageList[i], &userDemand, currentUser->userStar);
         if (score > 0) { // 得分大于0视为有效匹配
             matchedPackages[matchedPkgCount++] = packageList[i];
@@ -674,7 +675,7 @@ static float calcPackageSimilarity(const Package* pkgA, const Package* pkgB) {
 //获取用户对套餐的评分（从交互矩阵中）
 static float getUserRatingForPackage(int userIndex, int pkgIndex) {
     if (userIndex < 0 || userIndex >= totalUsers) return 0.0f;
-    if (pkgIndex < 0 || pkgIndex >= totalPackages) return 0.0f;
+    if (pkgIndex < 0 || pkgIndex >= pkgCount) return 0.0f;
     return userPkgMatrix[userIndex][pkgIndex];
 }
 
@@ -687,7 +688,7 @@ void itemBasedCFRecommendation() {
         printf("[错误] 请先登录系统！\n");
         return;
     }
-    if (totalPackages == 0) {
+    if (pkgCount == 0) {
         printf("[错误] 暂无套餐数据！\n");
         return;
     }
@@ -713,7 +714,7 @@ void itemBasedCFRecommendation() {
     UserInteraction interactions[10] = {0};  // 最多10个交互套餐
     int interactionCount = 0;
 
-    for (int i = 0; i < totalPackages; i++) {
+    for (int i = 0; i < pkgCount; i++) {
         float rating = getUserRatingForPackage(userIndex, i);
         if (rating > 0) {
             interactions[interactionCount].pkgIndex = i;
@@ -730,7 +731,7 @@ void itemBasedCFRecommendation() {
         }
         // 将已选套餐作为唯一交互项
         int selectedPkgId = atoi(currentUser->selectedPkg);
-        for (int i = 0; i < totalPackages; i++) {
+        for (int i = 0; i < pkgCount; i++) {
             if (packageList[i].id == selectedPkgId) {
                 interactions[0].pkgIndex = i;
                 interactions[0].rating = 4.0f;  // 假设对已选套餐评分4分
@@ -749,7 +750,7 @@ void itemBasedCFRecommendation() {
         float userRating = interactions[i].rating;   // 用户对该套餐的评分
 
         //计算该套餐与其他所有套餐的相似度
-        for (int j = 0; j < totalPackages; j++) {
+        for (int j = 0; j < pkgCount; j++) {
             if (j == srcPkgIndex) continue;  // 跳过自身
 
             float sim = calcPackageSimilarity(&packageList[srcPkgIndex], &packageList[j]);
@@ -762,7 +763,7 @@ void itemBasedCFRecommendation() {
     }
 
     //归一化得分并筛选推荐结果（排除用户已交互的套餐）
-    for (int j = 0; j < totalPackages; j++) {
+    for (int j = 0; j < pkgCount; j++) {
         // 跳过用户已交互的套餐
         int isInteracted = 0;
         for (int i = 0; i < interactionCount; i++) {
@@ -863,7 +864,7 @@ void queryUserPackage() {
 
     // 查找套餐详情
     int found = 0;
-    for (int i = 0; i < totalPackages; i++) {
+    for (int i = 0; i < pkgCount; i++) {
         if (packageList[i].id == atoi(currentUser->selectedPkg)) { // 假设套餐编号为数字ID
             printf("套餐详情：\n");
             printf("  套餐名称：%s\n", packageList[i].name);

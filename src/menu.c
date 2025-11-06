@@ -27,6 +27,7 @@ void mainMenu() {
         
         switch (choice) {
             case 1:
+                loadPackagesFromText();
                 loginUser();//用户登入函数
                 // 登录成功后跳转到用户功能菜单
                 if (strlen(currentUser->userId) > 0) {
@@ -126,9 +127,8 @@ void userFunctionMenu() {
                 calcUserStar();//查看客户星级
                 break;
             case 3:
-                inputDemandByForm();
-                matchPackagesByDemand();
-                showMatchedPackages();
+                recommendPackages();//查看推荐套餐
+                showMatchedPackages();// 显示推荐套餐
                 break;
             case 4:
                 queryUserPackage();//查询套餐

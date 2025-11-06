@@ -53,6 +53,7 @@ int matchedPkgCount;        // 匹配到的套餐数量
 Package matchedPackages[20];// 匹配结果列表
 static const char *PKG_FILE = "packages.txt";// 套餐数据文件
 static const char *USER_FILE = "users.txt";// 用户数据文件
+static const char *USER_DEMAND_FILE = "user_demand.txt";// 管理员数据文件
 static const char *ADMIN_FILE = "admins.txt";// 管理员数据文件
 
 #endif /* SYSTEM_H */
