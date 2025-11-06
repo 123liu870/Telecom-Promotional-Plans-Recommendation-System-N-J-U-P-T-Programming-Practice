@@ -7,7 +7,10 @@
 #include <windows.h>
 #include "system.h"
 
-extern User* currentUser;            // 当前登录用户指针
+extern User* currentUser;               // 当前登录用户指针
+extern Package* packageList;          // 套餐列表指针
+extern User* userList;                // 用户列表指针
+extern int totalUsers;                 // 用户总数
 
 // 工具函数
 int isStrEmpty(const char* str);          // 判断字符串是否为空
