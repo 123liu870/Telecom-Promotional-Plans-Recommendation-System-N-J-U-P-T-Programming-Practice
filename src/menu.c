@@ -60,79 +60,39 @@ void mainMenu() {
 /*管理员菜单*/
 void adminMenu(int index) {
     while (1) {
-        if(!admins[index].is_super){
         printf("\n===== 管理员菜单 =====\n");
+        // 公共选项（普通/超级管理员都可见）
         printf("1. 显示所有套餐\n");
         printf("2. 添加新套餐\n");
         printf("3. 修改套餐\n");
-        printf("4. 返回主菜单\n");
-        printf("请选择操作（1-4）：");
-    
-        int choice;
-        if (scanf("%d", &choice) != 1) {
-            printf("输入错误！\n");
-            clearInputBuffer();
-            continue;
+        // 超级管理员特有选项
+        if (admins[index].is_super) {
+            printf("4. 管理员账户修改\n");
+            printf("5. 返回主菜单\n");
+        } else {
+            printf("4. 返回主菜单\n");
         }
+        printf("请选择操作：");
         
+        int choice;
+        scanf("%d", &choice);
         clearInputBuffer();
         
-
+        // 处理公共选项
         switch (choice) {
-            case 1:
-                list_packages(allPackages, pkgCount);//显示所有套餐
-                break;
-            case 2:
-                add_package(allPackages, &pkgCount);//添加套餐
-                break;
-            case 3:
-                modify_package(allPackages, pkgCount);//修改套餐
-                break;
-            case 4:
-                printf("返回主菜单...\n");
-                return;
-            default:
-                printf("无效选项，请重新输入！\n");
-            }
+            case 1: list_packages(allPackages, pkgCount); break;
+            case 2: add_package(allPackages, &pkgCount); break;
+            case 3: modify_package(allPackages, pkgCount); break;
+            default: break;
         }
-        else{
-        printf("\n===== 管理员菜单 =====\n");
-        printf("1. 显示所有套餐\n");
-        printf("2. 添加新套餐\n");
-        printf("3. 修改套餐\n");
-        printf("4. 管理员账户修改\n");
-        printf("5. 返回主菜单\n");
-        printf("请选择操作（1-5）：");
-    
-        int choice;
-        if (scanf("%d", &choice) != 1) {
-            printf("输入错误！\n");
-            clearInputBuffer();
-            continue;
-        }
-        
-        clearInputBuffer();
-        
-
-        switch (choice) {
-            case 1:
-                list_packages(allPackages, pkgCount);//显示所有套餐
-                break;
-            case 2:
-                add_package(allPackages, &pkgCount);//添加套餐
-                break;
-            case 3:
-                modify_package(allPackages, pkgCount);//修改套餐
-                break;
-            case 5:
-                printf("返回主菜单...\n");
-                return;
-            case 4:
-                manage_admins(admins, &adminCount);//管理员账户修改
-                break;
-            default:
-                printf("无效选项，请重新输入！\n");
-            }
+        // 处理超级管理员特有选项
+        if (admins[index].is_super) {
+            if (choice == 4) manage_admins(admins, &adminCount);
+            else if (choice == 5) { printf("返回主菜单...\n"); return; }
+            else if (choice <1 || choice>5) printf("无效选项\n");
+        } else {
+            if (choice == 4) { printf("返回主菜单...\n"); return; }
+            else if (choice <1 || choice>4) printf("无效选项\n");
         }
     }
 }
