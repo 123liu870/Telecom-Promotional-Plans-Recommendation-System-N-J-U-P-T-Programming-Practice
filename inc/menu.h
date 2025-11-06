@@ -8,7 +8,7 @@
 #include "admin.h"
 
 void mainMenu();
-void adminMenu();
+void adminMenu(int index);
 void userFunctionMenu();
 void clearInputBuffer();
 
