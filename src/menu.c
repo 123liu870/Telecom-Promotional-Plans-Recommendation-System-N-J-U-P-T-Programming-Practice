@@ -67,13 +67,14 @@ void adminMenu(int index) {
         printf("1. [显示所有套餐]\n");
         printf("2. [添加新套餐]\n");
         printf("3. [修改套餐]\n");
-        printf("4. [用户享受套餐修改]\n");
+        printf("4. [修改用户标签]\n");
+        printf("5. [用户享受套餐修改]\n");
         // 超级管理员特有选项
         if (admins[index].is_super) {
-            printf("5. [管理员账户修改]\n");
-            printf("6. [返回主菜单]\n");
+            printf("6. [管理员账户修改]\n");
+            printf("7. [返回主菜单]\n");
         } else {
-            printf("5. [返回主菜单]\n");
+            printf("6. [返回主菜单]\n");
         }
         printf("请选择操作：");
         
@@ -86,17 +87,18 @@ void adminMenu(int index) {
             case 1: list_packages(allPackages, pkgCount); break;
             case 2: add_package(allPackages, &pkgCount); break;
             case 3: modify_package(allPackages, pkgCount); break;
-            case 4: admin_modify_user_package(userList); break;
+            case 4: modify_user_tag_menu(); break;  // 调用带菜单的标签修改函数
+            case 5: modify_user_package_menu(); break;  // 调用带菜单的套餐修改函数
             default: break;
         }
         // 处理超级管理员特有选项
         if (admins[index].is_super) {
-            if (choice == 5) manage_admins(admins, &adminCount);
-            else if (choice == 6) { printf("返回主菜单...\n"); return; }
-            else if (choice <1 || choice>6) printf("无效选项\n");
+            if (choice == 6) manage_admins(admins, &adminCount);
+            else if (choice == 7) { printf("返回主菜单...\n"); return; }
+            else if (choice <1 || choice>7) printf("无效选项\n");
         } else {
-            if (choice == 5) { printf("返回主菜单...\n"); return; }
-            else if (choice <1 || choice>5) printf("无效选项\n");
+            if (choice == 6) { printf("返回主菜单...\n"); return; }
+            else if (choice <1 || choice>6) printf("无效选项\n");
         }
     }
 }

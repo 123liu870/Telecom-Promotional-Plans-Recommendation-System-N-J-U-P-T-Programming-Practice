@@ -7,18 +7,9 @@
 
 #define KEYWORD_LEN 10
 
-// 用户历史消费数据文件路径
-#define USER_HISTORY_FILE "user_history.txt"
+// 用户标签文件路径
 #define USER_TAG_FILE "user_tags.txt"
 
-// // 用户需求与行为分区
-// typedef struct user_history {
-// 	int user_id;
-// 	double monthly_fees[12]; // 最近12个月月消费
-// 	int data_usage[12];      // 最近12个月流量使用（MB）
-// 	int voice_usage[12];     // 最近12个月语音分钟
-// 	int sms_usage[12];       // 最近12个月短信条数
-// } UserHistory;
 
 typedef struct user_tag {
 	int user_id;
@@ -41,14 +32,15 @@ void modify_package(Package pkgs[], int count);// 修改套餐
 void list_packages(Package pkgs[], int count);// 列出所有套餐
 
 /* 用户需求信息分区 */
-// int load_user_history(UserHistory histories[], int *count);// 读取所有用户历史消费数据，返回实际条数
-// int save_user_history(UserHistory histories[], int count);// 保存所有用户历史消费数据到文件
-void admin_modify_user_package(User* user); // 管理员修改用户的优惠套餐
-int load_user_tags(UserTag tags[], int *count);// 读取所有用户标签数据，返回实际条数
-int save_user_tags(UserTag tags[], int count);// 保存所有用户标签数据到文件
-void tag_user(int user_id, const char *tag);// 给指定用户添加标签（如“重度流量”），自动合并
-void list_user_tags(int user_id);// 列出指定用户的所有标签
-// void analyze_user_behavior(int user_id);// 分析指定用户的历史行为，自动生成标签或画像
-void generate_user_tags_based_on_data(int user_id);  // 基于用户数据生成标签
+// 在 admin.h 中确保已有以下声明
+int load_user_tags(UserTag tags[], int *count);
+int save_user_tags(UserTag tags[], int count);
+int add_all_user_tags();
+void show_user_tag(int user_id);
+void match_packages_by_tag(int user_id, Package matched[], int* matched_count);
+int modify_user_tag(int user_id, const char* new_tags);
+void admin_modify_user_package();
+void modify_user_tag_menu();       // 带菜单的用户标签修改
+void modify_user_package_menu();   // 带菜单的用户套餐修改
 #endif /* ADMIN_H */
 

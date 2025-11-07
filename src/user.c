@@ -8,13 +8,6 @@ User* userList = NULL;
 int totalUsers = 0;
 User* currentUser;
 
-//需求结构体
-typedef struct {
-    int data_mb;         // 流量需求(MB)
-    int voice_minutes;   // 通话需求(分钟)
-    int sms;             // 短信需求(条)
-    int valid;           // 需求有效性标记(1:有效)
-} Demand;
 static Demand userDemand = {0, 0, 0, 0};  //全局需求变量
 
 //判断字符串是否为空（全空格或空）

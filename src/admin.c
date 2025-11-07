@@ -4,6 +4,7 @@
 #include <conio.h> /* getch() 用于密码输入遮掩，实现无回显输入读取 */
 
 #include "admin.h"
+#include "user.h"
 
 int pkgCount=0;			   // 总套餐数量  
 int adminCount = 0;		 // 管理员数量
@@ -722,242 +723,17 @@ void modify_package(Package pkgs[], int count) {
 
 
 /*以下为对用户所享受套餐政策，优惠的管理*/
-
-// 管理员查询并修改用户信息入口（修改版）
-void admin_manage_user() {
-    // 1. 输入用户ID
-    char user_id[20];
-    printf("请输入要查询的用户ID：");
-    scanf("%19s", user_id);
-    clearInputBuffer();
-
-    // 2. 查找用户（调用user.c中的findUser）
-    User* user = findUser(user_id);
-    if (!user) {
-        printf("未找到用户ID：%s\n", user_id);
-        return;
-    }
-
-    // 显示用户基本信息
-    printf("\n===== 用户信息 =====\n");
-    printf("用户ID：%s\n", user->userId);
-    printf("用户名：%s\n", user->userName);
-    printf("当前套餐：%s\n", user->selectedPkg[0] ? user->selectedPkg : "未选择");
-    printf("使用年限：%d年\n", user->useYears);
-    printf("累计消费：%.2f元\n", user->totalCost);
-    printf("用户星级：%d星\n", user->userStar);
-
-    // 生成并显示用户标签（基于User数据）
-    printf("\n===== 用户标签 =====\n");
-    int uid = atoi(user_id); // 假设user_id是数字（与user_tags中的int user_id对应）
-    generate_user_tags_based_on_data(uid); // 自动生成标签
-    list_user_tags(uid); // 显示标签
-
-    // 基于标签和用户数据推荐套餐
-    printf("\n===== 套餐推荐 =====\n");
-    // 推荐逻辑：结合用户星级、消费能力、使用年限
-    printf("推荐依据：\n");
-    printf("- 星级%d星 → 推荐对应权益套餐\n", user->userStar);
-    printf("- 累计消费%.2f元 → 推荐%s价位套餐\n", 
-           user->totalCost, 
-           user->totalCost >= 5000 ? "中高端" : "经济型");
-    printf("- 使用%d年 → 推荐%s合约套餐\n", 
-           user->useYears, 
-           user->useYears >= 2 ? "长期" : "灵活期");
-
-    // 筛选推荐套餐
-    printf("\n推荐套餐列表：\n");
-    int _count = 0;
-    for (int i = 0; i < pkgCount; i++) {
-        Package* p = &allPackages[i];
-        if (!p->is_active) continue;
-
-        // 匹配条件：价格与消费能力匹配
-        int price_match = (user->totalCost >= 5000 && p->monthly_fee >= 80) ||
-                         (user->totalCost < 5000 && p->monthly_fee < 80);
-        // 匹配条件：合约与使用年限匹配
-        int contract_match = (user->useYears >= 2 && p->contract_months >= 12) ||
-                            (user->useYears < 2 && p->contract_months <= 6);
-
-        if (price_match && contract_match) {
-            printf("ID:%d 名称:%s 月费:%.2f元 流量:%dMB\n", 
-                   p->id, p->name, p->monthly_fee, p->data_mb);
-            _count++;
-        }
-    }
-    if (_count == 0) {
-        printf("暂无匹配推荐套餐\n");
-    }
-
-    //  提供修改套餐选项
-    printf("\n是否修改该用户的优惠套餐？(1=是,0=否)：");
-    int choice;
-    scanf("%d", &choice);
-    clearInputBuffer();
-    if (choice == 1) {
-        admin_modify_user_package(user);
-    }
-}
-
-// 管理员修改用户套餐
-void admin_modify_user_package(User* user) {
-    printf("\n===== 可选套餐列表 =====\n");
-    list_packages(allPackages, pkgCount);
-    
-    int pkg_id;
-    printf("请输入要为用户设置的套餐ID：");
-    scanf("%d", &pkg_id);
-    clearInputBuffer();
-    
-    int pkg_idx = -1;
-    for (int i = 0; i < pkgCount; i++) {
-        if (allPackages[i].id == pkg_id && allPackages[i].is_active == 1) {
-            pkg_idx = i;
-            break;
-        }
-    }
-    if (pkg_idx == -1) {
-        printf("无效的套餐ID或套餐未启用！\n");
-        return;
-    }
-    
-    strncpy(user->selectedPkg, allPackages[pkg_idx].name, sizeof(user->selectedPkg)-1);
-    if (saveUsersToText()) {
-        printf("用户套餐已更新为：%s\n", allPackages[pkg_idx].name);
-    } else {
-        printf("套餐修改失败，保存用户数据出错！\n");
-    }
-}
-
-// // 读取所有用户历史消费数据，填充 histories 数组，返回实际条数
-// int load_user_history(UserHistory histories[], int *count) {
-// 	FILE *fp = fopen(USER_HISTORY_FILE, "r");
-// 	if (!fp) { *count = 0; return 0; }
-// 	int idx = 0;
-// 	while (!feof(fp)) {
-// 		UserHistory h;
-// 		// 读取用户ID
-// 		int n = fscanf(fp, "%d", &h.user_id);
-// 		if (n != 1) break;
-// 		// 读取12个月的月消费
-// 		for (int i = 0; i < 12; i++) fscanf(fp, "%lf", &h.monthly_fees[i]);
-// 		// 读取12个月的流量使用
-// 		for (int i = 0; i < 12; i++) fscanf(fp, "%d", &h.data_usage[i]);
-// 		// 读取12个月的语音分钟
-// 		for (int i = 0; i < 12; i++) fscanf(fp, "%d", &h.voice_usage[i]);
-// 		// 读取12个月的短信条数
-// 		for (int i = 0; i < 12; i++) fscanf(fp, "%d", &h.sms_usage[i]);
-// 		// 存入数组
-// 		histories[idx++] = h;
-// 		if (idx >= 128) break;
-// 	}
-// 	fclose(fp);
-// 	*count = idx;
-// 	return idx;
-// }
-
-// // 保存所有用户历史消费数据到文件
-// int save_user_history(UserHistory histories[], int count) {
-// 	FILE *fp = fopen(USER_HISTORY_FILE, "w");
-// 	if (!fp) return 0;
-// 	for (int i = 0; i < count; i++) {
-// 		UserHistory *h = &histories[i];
-// 		// 写入用户ID
-// 		fprintf(fp, "%d ", h->user_id);
-// 		// 写入12个月的月消费
-// 		for (int j = 0; j < 12; j++) fprintf(fp, "%lf ", h->monthly_fees[j]);
-// 		// 写入12个月的流量使用
-// 		for (int j = 0; j < 12; j++) fprintf(fp, "%d ", h->data_usage[j]);
-// 		// 写入12个月的语音分钟
-// 		for (int j = 0; j < 12; j++) fprintf(fp, "%d ", h->voice_usage[j]);
-// 		// 写入12个月的短信条数
-// 		for (int j = 0; j < 12; j++) fprintf(fp, "%d ", h->sms_usage[j]);
-// 		fprintf(fp, "\n");
-// 	}
-// 	fclose(fp);
-// 	return 1;
-// }
-
-// // 读取所有用户标签数据，填充 tags 数组，返回实际条数
-// int load_user_tags(UserTag tags[], int *count) {
-// 	FILE *fp = fopen(USER_TAG_FILE, "r");
-// 	if (!fp) { *count = 0; return 0; }
-// 	int idx = 0;
-// 	while (!feof(fp)) {
-// 		UserTag t;
-// 		// 读取用户ID和标签字符串（逗号分隔）
-// 		int n = fscanf(fp, "%d,%127[^\n]\n", &t.user_id, t.tags);
-// 		if (n != 2) break;
-// 		tags[idx++] = t;
-// 		if (idx >= 128) break;
-// 	}
-// 	fclose(fp);
-// 	*count = idx;
-// 	return idx;
-// }
-
-// // 保存所有用户标签数据到文件
-// int save_user_tags(UserTag tags[], int count) {
-// 	FILE *fp = fopen(USER_TAG_FILE, "w");
-// 	if (!fp) return 0;
-// 	for (int i = 0; i < count; i++) {
-// 		// 写入用户ID和标签字符串
-// 		fprintf(fp, "%d,%s\n", tags[i].user_id, tags[i].tags);
-// 	}
-// 	fclose(fp);
-// 	return 1;
-// }
-
-// // 给指定用户添加标签（如“重度流量”），自动合并，避免重复
-// void tag_user(int user_id, const char *tag) {
-// 	UserTag tags[128]; int count = 0;
-// 	load_user_tags(tags, &count);
-// 	int found = -1;
-// 	// 查找用户标签记录
-// 	for (int i = 0; i < count; i++) {
-// 		if (tags[i].user_id == user_id) { found = i; break; }
-// 	}
-// 	if (found == -1) {
-// 		// 用户无标签，新建一条
-// 		tags[count].user_id = user_id;
-// 		strncpy(tags[count].tags, tag, sizeof(tags[count].tags));
-// 		count++;
-// 	} else {
-// 		// 用户已有标签，若未包含则追加
-// 		if (strstr(tags[found].tags, tag) == NULL) {
-// 			if (strlen(tags[found].tags) + strlen(tag) + 2 < sizeof(tags[found].tags)) {
-// 				strcat(tags[found].tags, ",");
-// 				strcat(tags[found].tags, tag);
-// 			}
-// 		}
-// 	}
-// 	// 保存更新后的标签
-// 	save_user_tags(tags, count);
-// }
-
-// // 列出指定用户的所有标签
-// void list_user_tags(int user_id) {
-// 	UserTag tags[128]; int count = 0;
-// 	load_user_tags(tags, &count);
-// 	for (int i = 0; i < count; i++) {
-// 		if (tags[i].user_id == user_id) {
-// 			printf("用户ID:%d 标签:%s\n", user_id, tags[i].tags);
-// 			return;
-// 		}
-// 	}
-// 	printf("用户ID:%d 暂无标签\n", user_id);
-// }
-
-// 实现标签加载
+// 加载用户标签数据
 int load_user_tags(UserTag tags[], int *count) {
     FILE *fp = fopen(USER_TAG_FILE, "r");
     if (!fp) { *count = 0; return 0; }
     *count = 0;
     char line[256];
     while (fgets(line, sizeof(line), fp) && *count < 100) {
-        line[strcspn(line, "\n")] = '\0';
+        trimStr(line);
+        if (isStrEmpty(line)) continue;
         char *uid_str = strtok(line, ",");
-        char *tag_str = strtok(NULL, ",");
+        char *tag_str = strtok(NULL, "\n");
         if (uid_str && tag_str) {
             tags[*count].user_id = atoi(uid_str);
             strncpy(tags[*count].tags, tag_str, sizeof(tags[*count].tags)-1);
@@ -967,22 +743,7 @@ int load_user_tags(UserTag tags[], int *count) {
     fclose(fp);
     return 1;
 }
-
-// 实现标签列表显示
-void list_user_tags(int user_id) {
-    UserTag tags[100];
-    int count = 0;
-    load_user_tags(tags, &count);
-    for (int i = 0; i < count; i++) {
-        if (tags[i].user_id == user_id) {
-            printf("%s\n", tags[i].tags);
-            return;
-        }
-    }
-    printf("无标签（可自动生成）\n");
-}
-
-// 实现标签保存
+// 保存用户标签数据
 int save_user_tags(UserTag tags[], int count) {
     FILE *fp = fopen(USER_TAG_FILE, "w");
     if (!fp) return 0;
@@ -992,136 +753,384 @@ int save_user_tags(UserTag tags[], int count) {
     fclose(fp);
     return 1;
 }
-
-// 实现手动添加标签
-void tag_user(int user_id, const char *tag) {
-    UserTag tags[100];
-    int count = 0;
-    load_user_tags(tags, &count);
-    // 查找用户是否已有标签
-    int found = -1;
-    for (int i = 0; i < count; i++) {
-        if (tags[i].user_id == user_id) {
-            found = i;
-            break;
-        }
-    }
-    if (found != -1) {
-        // 追加标签（去重）
-        if (strstr(tags[found].tags, tag) == NULL) {
-            strcat(tags[found].tags, ",");
-            strcat(tags[found].tags, tag);
-        }
+//为所有用户添加标签并保存
+void generate_user_tag(User* user, Demand* demand, char* tag_buf) {
+    tag_buf[0] = '\0';
+    // 基于用户星级
+    if (user->userStar >= 4) {
+        strcat(tag_buf, "高星级,");
+    } else if (user->userStar >= 2) {
+        strcat(tag_buf, "中星级,");
     } else {
-        // 新增标签
-        if (count < 100) {
-            tags[count].user_id = user_id;
-            strncpy(tags[count].tags, tag, sizeof(tags[count].tags)-1);
-            count++;
-        } else {
-            printf("标签数量达上限，无法添加\n");
-            return;
-        }
-    }
-    save_user_tags(tags, count);
-}
-
-// // 分析指定用户的历史行为，自动生成标签画像
-// void analyze_user_behavior(int user_id) {
-// 	UserHistory histories[128]; int hcount = 0;
-// 	load_user_history(histories, &hcount);
-// 	int idx = -1;
-// 	// 查找目标用户历史数据
-// 	for (int i = 0; i < hcount; i++) {
-// 		if (histories[i].user_id == user_id) { idx = i; break; }
-// 	}
-// 	if (idx == -1) { printf("未找到用户历史数据\n"); return; }
-// 	UserHistory *h = &histories[idx];
-// 	double avg_data = 0, avg_voice = 0, avg_sms = 0;
-// 	// 计算12个月平均流量、通话、短信
-// 	for (int i = 0; i < 12; i++) {
-// 		avg_data += h->data_usage[i];
-// 		avg_voice += h->voice_usage[i];
-// 		avg_sms += h->sms_usage[i];
-// 	}
-// 	avg_data /= 12; avg_voice /= 12; avg_sms /= 12;
-// 	// 根据阈值自动打标签
-// 	if (avg_data > 5000) tag_user(user_id, "重度流量");
-// 	else if (avg_data > 2000) tag_user(user_id, "中度流量");
-// 	else tag_user(user_id, "低流量");
-// 	if (avg_voice > 300) tag_user(user_id, "重度通话");
-// 	else if (avg_voice > 100) tag_user(user_id, "中度通话");
-// 	else tag_user(user_id, "低通话");
-// 	if (avg_sms > 100) tag_user(user_id, "重度短信");
-// 	else if (avg_sms > 30) tag_user(user_id, "中度短信");
-// 	else tag_user(user_id, "低短信");
-// 	printf("已为用户ID:%d 生成标签画像。\n", user_id);
-// }
-// 基于用户现有数据（累计消费、年限、星级）生成标签
-void generate_user_tags_based_on_data(int user_id) {
-    // 查找用户（调用user.c中的findUser）
-    char user_id_str[20];
-    sprintf(user_id_str, "%d", user_id);
-    User* user = findUser(user_id_str);
-    if (!user) {
-        printf("用户不存在，无法生成标签\n");
-        return;
+        strcat(tag_buf, "低星级,");
     }
 
-    // 清空旧标签（先删除再重新生成）
-    UserTag tags[100];
-    int tag_count = 0;
-    load_user_tags(tags, &tag_count);
-    // 移除该用户的旧标签
-    int new_count = 0;
-    for (int i = 0; i < tag_count; i++) {
-        if (tags[i].user_id != user_id) {
-            tags[new_count++] = tags[i];
-        }
-    }
-
-    // 基于User数据生成新标签
-    char new_tags[128] = "";
-    // 消费能力标签
-    if (user->totalCost >= 10000) {
-        strcat(new_tags, "高消费,");
-    } else if (user->totalCost >= 5000) {
-        strcat(new_tags, "中高消费,");
-    } else if (user->totalCost >= 1000) {
-        strcat(new_tags, "中等消费,");
-    } else {
-        strcat(new_tags, "低消费,");
-    }
-    // 忠诚度标签
+    // 基于使用年限
     if (user->useYears >= 5) {
-        strcat(new_tags, "长期用户,");
+        strcat(tag_buf, "老用户,");
     } else if (user->useYears >= 1) {
-        strcat(new_tags, "中期用户,");
+        strcat(tag_buf, "忠诚用户,");
     } else {
-        strcat(new_tags, "新用户,");
+        strcat(tag_buf, "新用户,");
     }
-    // 星级标签
-    char star_tag[20];
-    sprintf(star_tag, "%d星客户,", user->userStar);
-    strcat(new_tags, star_tag);
-    // 套餐偏好标签（基于当前套餐）
-    if (strlen(user->selectedPkg) > 0) {
-        strcat(new_tags, "已选套餐用户,");
-    } else {
-        strcat(new_tags, "未选套餐,");
+
+    // 基于需求（从user_demand.txt读取）
+    if (demand && demand->valid) {
+        if (demand->data_mb >= 10000) {
+            strcat(tag_buf, "大流量,");
+        } else if (demand->data_mb >= 2000) {
+            strcat(tag_buf, "中流量,");
+        } else {
+            strcat(tag_buf, "小流量,");
+        }
+
+        if (demand->voice_minutes >= 1000) {
+            strcat(tag_buf, "高通话,");
+        } else if (demand->voice_minutes >= 300) {
+            strcat(tag_buf, "中通话,");
+        } else {
+            strcat(tag_buf, "低通话,");
+        }
     }
 
     // 去除末尾逗号
-    if (strlen(new_tags) > 0) {
-        new_tags[strlen(new_tags) - 1] = '\0';
+    if (tag_buf[strlen(tag_buf)-1] == ',') {
+        tag_buf[strlen(tag_buf)-1] = '\0';
+    }
+}
+
+int add_all_user_tags() {
+    UserTag tags[100];
+    int tag_count = 0;
+    Demand demand;
+    char line[256];
+
+    // 加载用户数据
+    loadUsersFromText();
+
+    // 读取用户需求文件
+    FILE* demand_fp = fopen(USER_DEMAND_FILE, "r");
+    if (!demand_fp) return 0;
+
+    // 为每个用户生成标签
+    for (int i = 0; i < totalUsers; i++) {
+        // 查找用户需求
+        rewind(demand_fp);
+        memset(&demand, 0, sizeof(demand));
+        while (fgets(line, sizeof(line), demand_fp)) {
+            char* uid = strtok(line, ",");
+            if (uid && strcmp(uid, userList[i].userId) == 0) {
+                demand.data_mb = atoi(strtok(NULL, ","));
+                demand.voice_minutes = atoi(strtok(NULL, ","));
+                demand.sms = atoi(strtok(NULL, ","));
+                demand.valid = atoi(strtok(NULL, ","));
+                break;
+            }
+        }
+
+        // 生成标签
+        tags[tag_count].user_id = atoi(userList[i].userId);
+        generate_user_tag(&userList[i], &demand, tags[tag_count].tags);
+        tag_count++;
     }
 
-    //  保存新标签
-    if (new_count < 100) {
-        tags[new_count].user_id = user_id;
-        strncpy(tags[new_count].tags, new_tags, sizeof(tags[new_count].tags) - 1);
-        new_count++;
+    fclose(demand_fp);
+    return save_user_tags(tags, tag_count);
+}
+void show_user_tag(int user_id) {
+    UserTag tags[100];
+    int tag_count;
+    if (!load_user_tags(tags, &tag_count)) {
+        printf("未找到用户标签数据\n");
+        return;
     }
-    save_user_tags(tags, new_count);
-    printf("已生成用户标签：%s\n", new_tags);
+
+    for (int i = 0; i < tag_count; i++) {
+        if (tags[i].user_id == user_id) {
+            printf("用户ID:%d 的标签: %s\n", user_id, tags[i].tags);
+            return;
+        }
+    }
+    printf("未找到用户ID:%d 的标签\n", user_id);
+}
+// 标签匹配逻辑（基于实际标签类型：星级/用户类型/流量/通话）
+void match_packages_by_tag(int user_id, Package matched[], int* matched_count) {
+    UserTag tags[100];  // 存储所有用户标签
+    int total_tags = 0;
+    *matched_count = 0;  // 初始化匹配计数
+
+    // 加载用户标签文件数据
+    if (!load_user_tags(tags, &total_tags)) {
+        printf("用户标签数据加载失败\n");
+        return;
+    }
+
+    // 提取目标用户的标签字符串（如"中星级,忠诚用户,小流量,中通话"）
+    char user_tags[128] = "";
+    for (int i = 0; i < total_tags; i++) {
+        if (tags[i].user_id == user_id) {
+            strncpy(user_tags, tags[i].tags, sizeof(user_tags) - 1);
+            break;
+        }
+    }
+    if (strlen(user_tags) == 0) {
+        printf("未找到用户ID:%d的标签\n", user_id);
+        return;
+    }
+
+    // 遍历所有套餐，进行标签匹配
+    for (int i = 0; i < pkgCount; i++) {
+        int match_count = 0;  // 记录当前套餐匹配的标签数量
+        char tags_copy[128];  // 复制用户标签用于拆分（避免修改原字符串）
+
+        // 复制并确保字符串结束符
+        strncpy(tags_copy, user_tags, sizeof(tags_copy) - 1);
+        tags_copy[sizeof(tags_copy) - 1] = '\0';
+
+        // 按逗号拆分用户标签（如拆分出"中星级"、"忠诚用户"等单个标签）
+        char* single_tag = strtok(tags_copy, ",");
+        while (single_tag != NULL) {
+            // 检查套餐描述是否包含当前标签
+            if (strstr(allPackages[i].description, single_tag) != NULL) {
+                match_count++;  // 匹配到一个标签则计数+1
+            }
+            single_tag = strtok(NULL, ",");  // 取下一个标签
+        }
+
+        // 只要匹配到至少1个标签，就加入推荐列表
+        if (match_count > 0) {
+            // 控制推荐列表最大容量（假设最多10个）
+            if (*matched_count < 10) {
+                matched[*matched_count] = allPackages[i];
+                (*matched_count)++;
+            } else {
+                break;  // 达到最大容量则停止匹配
+            }
+        }
+    }
+}
+int modify_user_tag(int user_id, const char* new_tags) {
+    UserTag tags[100];
+    int tag_count;
+    if (!load_user_tags(tags, &tag_count)) return 0;
+
+    for (int i = 0; i < tag_count; i++) {
+        if (tags[i].user_id == user_id) {
+            strncpy(tags[i].tags, new_tags, sizeof(tags[i].tags)-1);
+            return save_user_tags(tags, tag_count);
+        }
+    }
+
+    // 若用户无标签则新增
+    if (tag_count < 100) {
+        tags[tag_count].user_id = user_id;
+        strncpy(tags[tag_count].tags, new_tags, sizeof(tags[tag_count].tags)-1);
+        return save_user_tags(tags, tag_count+1);
+    }
+    return 0;
+}
+void modify_user_tag_menu() {
+    while(1){
+    printf("\n----- 修改用户标签 -----\n");
+    printf("1. 查看用户当前标签\n");
+    printf("2. 编辑用户标签\n");
+    printf("0. 返回上一级\n");
+    printf("请选择操作: ");
+    
+    int sub_choice;
+    scanf("%d", &sub_choice);
+    clearInputBuffer();
+    
+    int uid;
+    char new_tags[128];
+    UserTag tags[100];
+    int tag_count;
+    load_user_tags(tags, &tag_count);  // 加载现有标签
+    
+    switch (sub_choice) {
+        case 1:  // 查看用户当前标签
+            printf("请输入要查询的用户ID: ");
+            scanf("%d", &uid);
+            clearInputBuffer();
+            show_user_tag(uid);  // 调用显示标签函数
+            break;
+            
+        case 2:  // 编辑用户标签
+            printf("请输入要修改的用户ID: ");
+            scanf("%d", &uid);
+            clearInputBuffer();
+            printf("请输入新标签(逗号分隔，如'高星级,大流量'): ");
+            fgets(new_tags, sizeof(new_tags), stdin);
+            new_tags[strcspn(new_tags, "\n")] = '\0';  // 去除换行符
+            
+            if (modify_user_tag(uid, new_tags)) {  // 调用实际修改函数
+                printf("用户标签修改成功\n");
+                save_user_tags(tags, tag_count);  // 保存修改
+            } else {
+                printf("用户标签修改失败\n");
+            }
+            break;
+            
+        case 0:  // 返回上一级
+            printf("返回管理员菜单...\n");
+            return;
+            
+        default:
+            printf("无效选项，请重新输入\n");
+    }
+}
+}
+
+// 修改用户享受套餐
+void admin_modify_user_package() {
+    // 显示所有用户信息和标签
+    loadUsersFromText();
+    UserTag tags[100];
+    int tag_count = load_user_tags(tags, &tag_count);
+
+    printf("\n=== 所有用户列表 ===\n");
+    printf("ID\t用户名\t已选套餐\t星级\t标签\n");
+    for (int i = 0; i < totalUsers; i++) {
+        printf("%s\t%s\t%s\t\t%d星\t", 
+               userList[i].userId,
+               userList[i].userName,
+               userList[i].selectedPkg,
+               userList[i].userStar);
+        
+        // 显示标签
+        int has_tag = 0;
+        for (int j = 0; j < tag_count; j++) {
+            if (tags[j].user_id == atoi(userList[i].userId)) {
+                printf("%s", tags[j].tags);
+                has_tag = 1;
+                break;
+            }
+        }
+        if (!has_tag) printf("无");
+        printf("\n");
+    }
+
+    // 指定目标用户
+    char user_id_str[20];
+    printf("\n请输入要修改套餐的用户ID: ");
+    scanf("%s", user_id_str);
+    int user_id = atoi(user_id_str);
+    User* target_user = findUser(user_id_str);
+    if (!target_user) {
+        printf("用户不存在\n");
+        return;
+    }
+
+    // 基于标签推荐套餐
+    Package recommended[10];
+    int rec_count;
+    match_packages_by_tag(user_id, recommended, &rec_count);
+
+    printf("\n=== 推荐套餐 (基于用户标签) ===\n");
+    if (rec_count == 0) {
+        printf("无匹配推荐套餐，将显示所有套餐\n");
+        list_packages(allPackages, pkgCount);
+    } else {
+        list_packages(recommended, rec_count);
+    }
+
+    // 执行修改
+    char new_pkg_id[20];
+    printf("请输入新套餐ID: ");
+    scanf("%s", new_pkg_id);
+    strncpy(target_user->selectedPkg, new_pkg_id, sizeof(target_user->selectedPkg)-1);
+    saveUsersToText();
+    printf("用户套餐修改成功\n");
+}
+void modify_user_package_menu() {
+    while(1){
+    printf("\n----- 修改用户享受套餐 -----\n");
+    printf("1. 查看用户当前套餐\n");
+    printf("2. 手动修改用户套餐\n");
+    printf("3. 根据标签推荐并修改套餐\n");
+    printf("0. 返回上一级\n");
+    printf("请选择操作: ");
+    
+    int sub_choice;
+    scanf("%d", &sub_choice);
+    clearInputBuffer();
+    switch (sub_choice) {
+        case 1:  // 查看用户当前套餐
+            {
+                char user_id[20];
+                printf("请输入要查询的用户ID: ");
+                scanf("%s", user_id);
+                clearInputBuffer();
+                User* user = findUser(user_id);
+                if (user) {
+                    printf("用户 %s 当前套餐: %s\n", user->userId, user->selectedPkg);
+                } else {
+                    printf("未找到该用户\n");
+                }
+            }
+            break;
+            
+        case 2:  // 手动修改用户套餐
+            admin_modify_user_package();  // 调用原有修改函数
+            break;
+            
+        case 3:  // 根据标签推荐并修改套餐
+    {
+        int uid;
+        printf("请输入用户ID: ");
+        scanf("%d", &uid);
+        clearInputBuffer();
+        
+        // 将整数uid转换为字符串（因为用户ID在User结构体中是char类型）
+        char user_id_str[20];
+        sprintf(user_id_str, "%d", uid);
+        
+        Package matched[10];
+        int matched_count = 0;
+        match_packages_by_tag(uid, matched, &matched_count);  // 调用标签匹配函数
+        
+        if (matched_count > 0) {
+            printf("为用户推荐以下套餐:\n");
+            for (int i = 0; i < matched_count; i++) {
+                printf("%d. %s (月费: %.2f元)\n", i+1, matched[i].name, matched[i].monthly_fee);
+            }
+            printf("请选择要为用户设置的套餐(1-%d): ", matched_count);
+            int pkg_choice;
+            scanf("%d", &pkg_choice);
+            clearInputBuffer();
+            
+            if (pkg_choice >= 1 && pkg_choice <= matched_count) {
+                // 1. 查找用户
+                User* target_user = findUser(user_id_str);
+                if (target_user == NULL) {
+                    printf("错误：未找到ID为%d的用户\n", uid);
+                    break;
+                }
+                
+                // 2. 更新用户套餐（保存套餐名称）
+                const char* new_pkg_name = matched[pkg_choice - 1].name;
+                strncpy(target_user->selectedPkg, new_pkg_name, sizeof(target_user->selectedPkg) - 1);
+                target_user->selectedPkg[sizeof(target_user->selectedPkg) - 1] = '\0';  // 确保字符串结束符
+                
+                // 3. 保存修改到文件
+                if (saveUsersToText()) {
+                    printf("已成功为用户[%d]设置套餐: %s\n", uid, new_pkg_name);
+                } else {
+                    printf("套餐修改成功，但保存到文件失败\n");
+                }
+            }
+        } else {
+            printf("未找到匹配的推荐套餐\n");
+        }
+    }
+    break;
+            
+        case 0:  // 返回上一级
+            printf("返回管理员菜单...\n");
+            return;
+            
+        default:
+            printf("无效选项，请重新输入\n");
+    }
+}
 }
